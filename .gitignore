@@ -12,6 +12,7 @@
 .vscode
 .web
 __pycache__/
+agent
 backend.zip
 bun.lockb
 dist/*

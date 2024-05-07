@@ -1,6 +1,27 @@
 import os
 import reflex as rx
 from openai import OpenAI
+from agent.agent import AgentState, reply
+from agent.utils.api_assistant import Assistant
+from agent.utils.toolbox import ToolBox
+
+
+# Prepare agent
+assistant_id_main = os.environ["OPENAI_ASSISTANT_ID_MAIN"]
+assistant_id_secondary = os.environ["OPENAI_ASSISTANT_ID_SECONDARY"]
+assistant_id_compressor = os.environ["OPENAI_ASSISTANT_ID_COMPRESSOR"]
+
+# Create engine_main to run the assistant requests
+engine_main = Assistant(assistant_id_main, "")
+engine_secondary = Assistant(assistant_id_secondary)
+engine_compressor = Assistant(assistant_id_compressor)
+
+# Create the toolbox
+toolbox = ToolBox(engine_main, engine_secondary, engine_compressor)
+
+# Create agent state
+agent_state = AgentState(toolbox=toolbox, interactive=True)
+
 
 
 # Checking if the API key is set properly
@@ -76,18 +97,12 @@ class State(rx.State):
         if question == "":
             return
 
-        model = self.openai_process_question
+        model = self.agent_process_question
 
         async for value in model(question):
             yield value
 
-    async def openai_process_question(self, question: str):
-        """Get the response from the API.
-
-        Args:
-            form_data: A dict with the current question.
-        """
-
+    async def agent_process_question(self, question: str):
         # Add the question to the list of questions.
         qa = QA(question=question, answer="")
         self.chats[self.current_chat].append(qa)
@@ -96,41 +111,47 @@ class State(rx.State):
         self.processing = True
         yield
 
-        # Build the messages.
-        messages = [
-            {
-                "role": "system",
-                "content": "You are a friendly chatbot named Reflex. Respond in markdown.",
-            }
-        ]
-        for qa in self.chats[self.current_chat]:
-            messages.append({"role": "user", "content": qa.question})
-            messages.append({"role": "assistant", "content": qa.answer})
-
-        # Remove the last mock answer.
-        messages = messages[:-1]
-
-        # Start a new session to answer the question.
-        session = OpenAI().chat.completions.create(
-            model=os.getenv("OPENAI_MODEL", "gpt-3.5-turbo"),
-            messages=messages,
-            stream=True,
-        )
-
         # Stream the results, yielding after every word.
-        for item in session:
-            if hasattr(item.choices[0].delta, "content"):
-                answer_text = item.choices[0].delta.content
-                # Ensure answer_text is not None before concatenation
-                if answer_text is not None:
-                    self.chats[self.current_chat][-1].answer += answer_text
-                else:
-                    # Handle the case where answer_text is None, perhaps log it or assign a default value
-                    # For example, assigning an empty string if answer_text is None
-                    answer_text = ""
-                    self.chats[self.current_chat][-1].answer += answer_text
-                self.chats = self.chats
-                yield
+        for answer_text in reply(agent_state, question):
+            self.chats[self.current_chat][-1].answer += answer_text
+            self.chats = self.chats
+            yield
+
+        # # Build the messages.
+        # messages = [
+        #     {
+        #         "role": "system",
+        #         "content": "You are a friendly chatbot named Reflex. Respond in markdown.",
+        #     }
+        # ]
+        # for qa in self.chats[self.current_chat]:
+        #     messages.append({"role": "user", "content": qa.question})
+        #     messages.append({"role": "assistant", "content": qa.answer})
+
+        # # Remove the last mock answer.
+        # messages = messages[:-1]
+
+        # # Start a new session to answer the question.
+        # session = OpenAI().chat.completions.create(
+        #     model=os.getenv("OPENAI_MODEL", "gpt-3.5-turbo"),
+        #     messages=messages,
+        #     stream=True,
+        # )
+
+        # # Stream the results, yielding after every word.
+        # for item in session:
+        #     if hasattr(item.choices[0].delta, "content"):
+        #         answer_text = item.choices[0].delta.content
+        #         # Ensure answer_text is not None before concatenation
+        #         if answer_text is not None:
+        #             self.chats[self.current_chat][-1].answer += answer_text
+        #         else:
+        #             # Handle the case where answer_text is None, perhaps log it or assign a default value
+        #             # For example, assigning an empty string if answer_text is None
+        #             answer_text = ""
+        #             self.chats[self.current_chat][-1].answer += answer_text
+        #         self.chats = self.chats
+        #         yield
 
         # Toggle the processing flag.
         self.processing = False
