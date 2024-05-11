@@ -19,3 +19,4 @@ dist/*
 frontend.zip
 poetry.lock
 venv/
+logs*

@@ -1,9 +1,20 @@
 import os
 import reflex as rx
 from agent.utils.toolbox import ToolBox
+import logging
+from agent.utils import logger
+import datetime
+import sys
+
+
+# Set up logging to file
+logger.setup(f"logs/logs_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.txt")
+logging.info(f"COMMAND: {' '.join(sys.argv)}\n=====")
+
 
 # Create the toolbox
 toolbox = ToolBox()
+
 
 
 # Checking if the API key is set properly
@@ -99,9 +110,13 @@ class State(rx.State):
             self.chats = self.chats
             yield
 
+
+        print(self.chats[self.current_chat][-1].answer) #debug
+
         # Embed quotes in urls
         self.chats[self.current_chat][-1].answer = toolbox.embed_quotes_in_urls(self.chats[self.current_chat][-1].answer)
         self.chats = self.chats
+        yield
 
         # Toggle the processing flag.
         self.processing = False
