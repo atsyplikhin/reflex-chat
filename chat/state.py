@@ -1,9 +1,6 @@
 import os
 import reflex as rx
-from openai import OpenAI
-from agent.utils.api_assistant import Assistant
 from agent.utils.toolbox import ToolBox
-
 
 # Create the toolbox
 toolbox = ToolBox()
@@ -102,41 +99,9 @@ class State(rx.State):
             self.chats = self.chats
             yield
 
-        # # Build the messages.
-        # messages = [
-        #     {
-        #         "role": "system",
-        #         "content": "You are a friendly chatbot named Reflex. Respond in markdown.",
-        #     }
-        # ]
-        # for qa in self.chats[self.current_chat]:
-        #     messages.append({"role": "user", "content": qa.question})
-        #     messages.append({"role": "assistant", "content": qa.answer})
-
-        # # Remove the last mock answer.
-        # messages = messages[:-1]
-
-        # # Start a new session to answer the question.
-        # session = OpenAI().chat.completions.create(
-        #     model=os.getenv("OPENAI_MODEL", "gpt-3.5-turbo"),
-        #     messages=messages,
-        #     stream=True,
-        # )
-
-        # # Stream the results, yielding after every word.
-        # for item in session:
-        #     if hasattr(item.choices[0].delta, "content"):
-        #         answer_text = item.choices[0].delta.content
-        #         # Ensure answer_text is not None before concatenation
-        #         if answer_text is not None:
-        #             self.chats[self.current_chat][-1].answer += answer_text
-        #         else:
-        #             # Handle the case where answer_text is None, perhaps log it or assign a default value
-        #             # For example, assigning an empty string if answer_text is None
-        #             answer_text = ""
-        #             self.chats[self.current_chat][-1].answer += answer_text
-        #         self.chats = self.chats
-        #         yield
+        # Embed quotes in urls
+        self.chats[self.current_chat][-1].answer = toolbox.embed_quotes_in_urls(self.chats[self.current_chat][-1].answer)
+        self.chats = self.chats
 
         # Toggle the processing flag.
         self.processing = False
