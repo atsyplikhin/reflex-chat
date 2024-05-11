@@ -1,27 +1,12 @@
 import os
 import reflex as rx
 from openai import OpenAI
-from agent.agent import AgentState, reply
 from agent.utils.api_assistant import Assistant
 from agent.utils.toolbox import ToolBox
 
 
-# Prepare agent
-assistant_id_main = os.environ["OPENAI_ASSISTANT_ID_MAIN"]
-assistant_id_secondary = os.environ["OPENAI_ASSISTANT_ID_SECONDARY"]
-assistant_id_compressor = os.environ["OPENAI_ASSISTANT_ID_COMPRESSOR"]
-
-# Create engine_main to run the assistant requests
-engine_main = Assistant(assistant_id_main, "")
-engine_secondary = Assistant(assistant_id_secondary)
-engine_compressor = Assistant(assistant_id_compressor)
-
 # Create the toolbox
-toolbox = ToolBox(engine_main, engine_secondary, engine_compressor)
-
-# Create agent state
-agent_state = AgentState(toolbox=toolbox, interactive=True)
-
+toolbox = ToolBox()
 
 
 # Checking if the API key is set properly
@@ -112,7 +97,7 @@ class State(rx.State):
         yield
 
         # Stream the results, yielding after every word.
-        for answer_text in reply(agent_state, question):
+        for answer_text in toolbox.stream_with_sources(question):
             self.chats[self.current_chat][-1].answer += answer_text
             self.chats = self.chats
             yield
